@@ -1,5 +1,25 @@
 #!/usr/bin/python
 #-*- coding: utf-8 -*-
+"""
+Copyright 2017 MDL 
+
+This is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see
+<http://www.gnu.org/licenses/>.
+
+This file is part of the BugOne project 
+https://github.com/jkx/DIY-Wireless-Bug
+"""
 
 ### Packet types ###
 
@@ -54,15 +74,17 @@ def readValues(data):
 		valueType = data[2]
 		value = None
 		if valueType == ord('I'):
-			value = readInteger(data[3:5])
+			valueInt = readInteger(data[3:5])
+			value = data[3:5]
 			data = data[5:]
 		elif valueType == ord('S'):
 			count = data[3]
+			valueInt = 0
 			value = data[4:4+count]
 			data = data[4+count:]
 		else:
 			break
-		values.append((srcDevice, destDevice, value))
+		values.append((srcDevice, destDevice, value, valueInt))
 	return values
 
 def readConfigs(data):

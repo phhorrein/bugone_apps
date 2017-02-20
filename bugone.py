@@ -1,39 +1,26 @@
 # -*- coding: utf-8 -*-
 
-""" This file is part of B{Domogik} project (U{http://www.domogik.org}).
+"""
+Copyright 2017 Pierre-Henri Horrein <ph.horrein@frekilabs.fr>
 
-License
-=======
-
-B{Domogik} is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
+This is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-B{Domogik} is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with Domogik. If not, see U{http://www.gnu.org/licenses}.
+along with this program.  If not, see
+<http://www.gnu.org/licenses/>.
 
-Plugin purpose
-==============
-
-Handle bugOne sniffer and the bugOne network
-
-Implements
-==========
-
-- BugOne
-- BugOneException
-
-@author: Freki <freki@frekilabs.fr>
-@copyright: (C) 2007-2016 Domogik project
+@author: Pierre-Henri Horrein <ph.horrein@frekilabs.fr>
 @license: GPL(v3)
-@organization: Domogik
 """
+
 
 import time
 import asyncio
@@ -111,11 +98,12 @@ class BugOneProtocol(asyncio.Protocol):
 
 class BugOne():
 
-    def __init__(self, port, autoreconnect, baudrate, log):
+    def __init__(self, port, autoreconnect, baudrate, log, cb = None):
         self.port = port
         self.autoreconnect = autoreconnect
         self.baudrate = baudrate
         self.log = log
+        self.glob_cb = cb
         self.registered_devices = {}
         self.registered_nodes = {}
 
@@ -157,10 +145,10 @@ class BugOne():
         elif messageType == bugonehelper.PACKET_VALUES:
             values = bugonehelper.readValues(bugonehelper.getPacketData(data))
             self.log.debug("Values: %s" % (values))
-            for (srcDevice, destDevice, value) in values:
+            for (srcDevice, destDevice, value, valueInt) in values:
                 self._run_cb(srcNodeId,srcDevice,value)
                 self.log.debug("(%s.%s) -> (%s.%s) = %s" % \
-                    (srcNodeId, srcDevice, destNodeId, destDevice, value))
+                    (srcNodeId, srcDevice, destNodeId, destDevice, valueInt))
         elif messageType == bugonehelper.PACKET_SLEEP:
             status = False
             self.log.debug("Sleep packet")
@@ -179,6 +167,8 @@ class BugOne():
                 cb_node(nodeid,status)
 
     def _run_cb(self,nodeid,devid,value):
+        if self.glob_cb:
+            self.glob_cb(nodeid,devid,value)
         if (nodeid,devid) in self.registered_devices:
             for cb in self.registered_devices[ (nodeid,devid) ]:
                 cb(nodeid,devid,value)
