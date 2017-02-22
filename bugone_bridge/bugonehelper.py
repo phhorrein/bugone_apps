@@ -75,7 +75,7 @@ def readValues(data):
 		value = None
 		if valueType == ord('I'):
 			valueInt = readInteger(data[3:5])
-			value = data[3:5]
+			value = valueInt.to_bytes(2,byteorder="big")
 			data = data[5:]
 		elif valueType == ord('S'):
 			count = data[3]

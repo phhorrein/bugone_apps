@@ -1,0 +1,14 @@
+---
+name: Home Sweet Home
+nodes:
+   - location: Living Room
+     address: living
+     nodeid: 1
+     display: Sensor from the Living Room
+devices:
+   - display: Temperature from the living room
+     type: temperature
+     nodeid: 1
+     devid: 1
+     format: 2
+...

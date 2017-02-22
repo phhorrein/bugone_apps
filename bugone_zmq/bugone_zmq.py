@@ -39,12 +39,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     verbose = args.verbose
+
+    #Default values for parameters (overriden if config file is present)
     log_file = "/tmp/bugone.log"
     serial_port = "/dev/ttyUSB0"
     serial_baudrate = "38400"
     serial_reconnect = False
     pub_address = "localhost"
     pub_port = "40666"
+
     if args.config: 
         confpath = args.config
         if not os.access(os.path.expanduser(confpath),os.R_OK):
@@ -88,17 +91,27 @@ if __name__ == "__main__":
     context = zmq.Context()
     publisher = context.socket(zmq.PUB)
     pub_url = "tcp://"+pub_address+":"+pub_port
-    print("Connecting to address %s" % pub_url)
+    print("Connecting to address %s..." % pub_url)
     publisher.bind(pub_url)
-    def publish(nodeid,devid,value):
+    print("Done, starting the bridge")
+
+    def publish_values(nodeid,devid,value):
+        # Publish the results with the following protocol: 
+        # First the timestamp in seconds since Epoch in UTC, on 8 bytes (fit for the next "a lot" of years)
+        # Second, the type of data being published (0 = config, 1 = values, 2 = node status) (1 byte)
+        # Third one is always nodeid (1 byte)
+        # Fourth one is devid if type is config or values (1 byte), it does not exist otherwise (0 byte)
+        # Last one is variable length payload
         msg = b""
+        msg = msg + int(time.time()).to_bytes(8,byteorder = "big")
+        msg = msg + bytes([1])
         msg = msg + bytes([nodeid])
         msg = msg + bytes([devid])
         msg = msg + value
         logger.debug("Publishing: %s" % (msg))
         publisher.send(msg)
 
-    bug = bugone.BugOne(serial_port, serial_reconnect, serial_baudrate, logger, publish)
+    bug = bugone.BugOne(serial_port, serial_reconnect, serial_baudrate, logger, publish_values)
 
     bug.start()
 

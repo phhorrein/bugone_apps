@@ -27,8 +27,6 @@ import logging.handlers
 import bugonehelper
 import zmq
 
-
-
 if __name__ == "__main__":
     context = zmq.Context()
     subscriber = context.socket(zmq.SUB)
@@ -37,7 +35,12 @@ if __name__ == "__main__":
 
     while True:
         message = subscriber.recv()
-        print("%s - (%s,%s) -> %s" % (time.asctime(), message[0], message[1], bugonehelper.readInteger(message[2:4])))
+        timestamp = int.from_bytes(message[0:8], byteorder = "big")
+        msgtype = message[8]
+        nodeid = message[9]
+        if msgtype < 2:
+            devid = message[10]
+            print("%s - (%s,%s) -> %s" % (time.asctime(time.localtime(timestamp)), nodeid, devid, int.from_bytes(message[11:13], byteorder = "big")))
 
 
 

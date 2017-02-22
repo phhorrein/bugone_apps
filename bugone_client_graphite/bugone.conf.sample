@@ -1,0 +1,14 @@
+[General]
+log_file=/tmp/bugone.log
+
+[BugOne]
+bugone_network_db=/path/to/bugnet.yaml
+
+[Server]
+address=localhost
+port=40666
+
+[Graphite]
+graph_address=localhost
+port=2004
+

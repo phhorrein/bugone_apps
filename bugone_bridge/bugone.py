@@ -56,41 +56,43 @@ class BugOneProtocol(asyncio.Protocol):
         ayncio.get_event_loop().stop() # No reconnect for now
 
     def data_received(self, data):
-        start_idx = 0
-        while start_idx < len(data):
+        while len(data) > 0:
             # Check if we are already waiting for a packet
             if not self.waiting:
-                self.length = data[start_idx]
+                self.length = data[0]
+                data = data[1:]
                 # BugOne packets are always 32 bytes long
                 if self.length != 32:
-                    self.log.debug("Received impossible length, we should discard")
+                    self.log.error("Received impossible length (%s), we should discard" % str(self.length))
                     self.length = 32
                     self.errors = self.errors + 1
                     # TODO : add timeout to discard
-                self.length = self.length + 1 # Add checksum
+                self.length += 1 # Add checksum
                 self.waiting = True
-                start_idx = start_idx + 1
                 self.data = b""
 
-            # We still have self.length bytes to read, and we just received len(data) - start_idx
-            to_read = min(len(data) - start_idx, self.length)
-            last_idx = start_idx + to_read
-            self.data = self.data + data[start_idx:last_idx]
-            self.length = self.length - to_read
-            start_idx = last_idx 
+            # We still have self.length bytes to read, and we just received len(data)
+            to_read = min(len(data), self.length)
+            if to_read != 0:
+                last_idx = to_read
+                self.data = self.data + data[0:last_idx]
+                data = data[last_idx:]
+                self.length -= to_read
+
             if self.length == 0: 
-                checksum = self.data[-1]
-                c = 0
                 self.received = self.received + 1
-                for i in data:
+                c = 0
+                for i in self.data:
                     c ^= i
-                if c != checksum:
-                    self.log.debug('Erroneous data...')
+                if c != 0:
+                    self.log.error('Erroneous data...')
                     self.errors = self.errors + 1
                 self._process_data(self.data)
                 self.log.debug('%s received, %s errors' % (self.received, self.errors))
                 self.waiting = False
                 self.data = b""
+            if (len(data)) != 0:
+                self.log.debug("Proceed with next data (length: %s)" % (len(data)))
 
     def send_data(self,data):
         self.log.debug('Sending data', repr(data))
@@ -135,7 +137,7 @@ class BugOne():
         destNodeId = bugonehelper.getPacketDest(data)
         counter = bugonehelper.getPacketCounter(data)
         status = True
-        self.log.debug(u"Message [%s] from %s to %s" % (counter, hex(srcNodeId), hex(destNodeId)))
+        self.log.info(u"Message [%s] from %s to %s" % (counter, hex(srcNodeId), hex(destNodeId)))
         if messageType == bugonehelper.PACKET_HELLO:
             self.log.debug("Hello")
         elif messageType == bugonehelper.PACKET_PING:
@@ -144,10 +146,9 @@ class BugOne():
             self.log.debug("Pong")
         elif messageType == bugonehelper.PACKET_VALUES:
             values = bugonehelper.readValues(bugonehelper.getPacketData(data))
-            self.log.debug("Values: %s" % (values))
             for (srcDevice, destDevice, value, valueInt) in values:
                 self._run_cb(srcNodeId,srcDevice,value)
-                self.log.debug("(%s.%s) -> (%s.%s) = %s" % \
+                self.log.info("(%s.%s) -> (%s.%s) = %s" % \
                     (srcNodeId, srcDevice, destNodeId, destDevice, valueInt))
         elif messageType == bugonehelper.PACKET_SLEEP:
             status = False
@@ -155,7 +156,7 @@ class BugOne():
         elif messageType == bugonehelper.PACKET_CONFIG:
             configs = bugonehelper.readConfigs(bugonehelper.getPacketData(data))
             for (srcDevice, srcType) in configs: 
-                self.log.debug("Node has device %s with type %s" % (str(srcDevice),str(srcType)))
+                self.log.info("Node has device %s with type %s" % (str(srcDevice),str(srcType)))
         else:
             self.log.debug([hex(i) for i in bugonehelper.getPacketData(data)])
         self._report_status(srcNodeId,status)
